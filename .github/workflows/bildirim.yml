@@ -1,0 +1,38 @@
+name: Bildirimler
+
+# 15 dakikada bir çalışır; zamanı gelen bildirimleri gönderir.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: bildirim
+  cancel-in-progress: false
+
+jobs:
+  gonder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: bildirim
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Bildirimleri gönder
+        run: node bildirim/gonder.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      # GitHub, 60 gün hareketsiz kalan depolarda zamanlanmış işleri durdurur; bu adım işi açık tutar.
+      - name: Zamanlamayı açık tut
+        if: github.event_name == 'schedule'
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/bildirim.yml/enable" > /dev/null || true
+        env:
+          GH_TOKEN: ${{ github.token }}

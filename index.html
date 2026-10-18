@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
 <script>window.SONPAKET_PWA=true;window.FB_CONFIG={"apiKey": "AIzaSyB93-afi-bA-l3tIKVRhCJMNTTeWJCHMy4", "authDomain": "sigarayi-birak-uygulamasi.firebaseapp.com", "projectId": "sigarayi-birak-uygulamasi", "storageBucket": "sigarayi-birak-uygulamasi.firebasestorage.app", "messagingSenderId": "142845485652", "appId": "1:142845485652:web:c15f3920a3679ec716c3c1", "measurementId": "G-MB4XPYN5R9"};window.FB_READY=new Promise(function(r){window.__fbRes=r;});</script>
-<script type="module" src="fb.js?v=55d450af" onerror="window.__fbRes&&window.__fbRes(null)"></script>
+<script type="module" src="fb.js?v=ed5b2093" onerror="window.__fbRes&&window.__fbRes(null)"></script>
 <style>
 /* Layout: tek kolon telefon uygulaması; üstte çizgi roman sahnesi (sen, Ciğerim, Nuri Dayı), altında paket ve günlük kartlar, en altta sabit sekme çubuğu */
 :root{
@@ -561,6 +561,9 @@ textarea.code{min-height:80px;font-family:ui-monospace,SFMono-Regular,Menlo,mono
 .old-code .btn-text{padding-top:0}
 .auth-card .btn-text{min-height:36px}
 #me-ident{margin:0}
+.notif-body{display:flex;flex-direction:column;gap:10px}
+.notif-body>p{margin:0}
+.notif-body>.btn{align-self:flex-start}
 #me-ident b{word-break:break-all}
 .err{color:var(--warn);font-size:13.5px;font-weight:500;margin:0}
 .note{font-size:12.5px;color:var(--muted);margin:0}
@@ -834,6 +837,11 @@ textarea.code{min-height:80px;font-family:ui-monospace,SFMono-Regular,Menlo,mono
         <div class="field"><label for="set-sleep">Yatma saati</label><input type="time" id="set-sleep"></div>
         <div class="field full"><label for="set-mg">Sigara başına alınan nikotin (mg)</label><input type="number" id="set-mg" min="0.1" max="5" step="0.1" inputmode="decimal"><span class="hint">Ortalama yaklaşık 1 mg. Paketteki değer, vücuda geçen miktarla aynı değildir.</span></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="ic" data-ic="bell"></span>Bildirimler</h2>
+      <div class="notif-body" id="notif-body"></div>
     </div>
 
     <div class="card">
@@ -1468,6 +1476,7 @@ const ICON={
   play:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',
   crown:'<svg viewBox="0 0 24 24"><path d="M4 18h16l1.2-10-5.2 4L12 5.5 8 12 2.8 8z"/></svg>',
   key:'<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg>',
+  bell:'<svg viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>',
   logout:'<svg viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/></svg>',
   trash:'<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/></svg>',
   eye:'<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -1965,6 +1974,8 @@ function normalize(o){
   s.name=typeof s.name==='string'?s.name.trim().slice(0,30):'';
   s.mascot=(typeof s.mascot==='string'&&s.mascot.trim())?s.mascot.trim().slice(0,20):'Ciğerim';
   s.onboarded=s.onboarded===true;s.kufur=s.kufur!==false;s.ses=s.ses!==false;
+  const nb=(s.bildirim&&typeof s.bildirim==='object')?s.bildirim:{};
+  s.bildirim={sabah:nb.sabah!==false,aksam:nb.aksam!==false,basari:nb.basari!==false,dayi:nb.dayi!==false};
   const days={},od=(o&&o.days)||{};
   for(const k in od){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(k))continue;const x=od[k]||{};
@@ -2092,6 +2103,7 @@ async function attachUser(user,id){
     if(typeof remote.kimlik==='string'&&remote.kimlik)a.u=remote.kimlik.slice(0,80);
     const r=readRemote(remote);
     if(r){const before=JSON.stringify(r);a.st=hasData(a.st)?mergeStates(a.st,r):r;if(JSON.stringify(a.st)!==before)a.dirty=true;a.syncedAt=Date.now();}
+    else a.dirty=true;
   }else if(!cached||hasData(a.st))a.dirty=true;
   store.accounts[a.uid]=a;saveStore();
   return a;
@@ -2568,6 +2580,7 @@ function renderMe(){
   $('#set-kufur').checked=s.kufur;$('#set-ses').checked=s.ses;
   const re=$('#set-reasons');if(document.activeElement!==re)re.value=s.reasons;
   setSync(syncMode);
+  renderNotif();refreshPush();
 }
 
 /* ---------- görünüm ---------- */
@@ -3087,7 +3100,7 @@ async function doAuth(){
     AU.prefill='';AU.codeOpen=false;AU.consent=false;
     loginAs(a);AU.busy=false;
     if(imp)toast('Eski kayıtların yeni hesabına taşındı');
-    syncNow();
+    syncNow();pingActive();
   }catch(e){
     AU.busy=false;
     const b=$('#au-submit');if(b){b.disabled=false;b.textContent=signup?'Hesap oluştur':'Giriş yap';}
@@ -3108,7 +3121,9 @@ function afterLogin(){
 }
 function enterApp(){
   $('#boot').hidden=true;$('#auth').hidden=true;$('#app').hidden=false;$('#tabbar').hidden=false;
-  todaySig='';stageLine=null;checkBadges(false);saveStore();showView('today');
+  todaySig='';stageLine=null;checkBadges(false);saveStore();
+  let v=null;try{v=new URLSearchParams(location.search).get('v');if(v)history.replaceState(null,'',location.pathname);}catch(e){}
+  showView(['today','story','sos','progress','me'].includes(v)?v:'today');
 }
 function closeOverlays(){
   stopSOS();if(SP){SP=null;$('#story').hidden=true;$('#story').innerHTML='';}
@@ -3118,7 +3133,8 @@ function closeOverlays(){
 }
 async function logout(){
   const a=acc;
-  if(a){saveStore();if(a.dirty&&FB&&fbUser){setSync('saving');try{await withTimeout(syncNow(),6000);}catch(e){}}}
+  if(a){saveStore();if(a.dirty&&FB&&fbUser){setSync('saving');try{await withTimeout(syncNow(),6000);}catch(e){}}
+    try{await withTimeout(disablePush(true),8000);}catch(e){}}
   closeOverlays();
   lsDel(LS_SESSION);useAccount(null);
   AU.prefill='';openAuth('giris');
@@ -3226,6 +3242,91 @@ function showBoot(){
   const b=$('#boot');b.innerHTML='<div class="boot-in"><div class="mascot idle">'+lungSVG({mood:'happy',health:.8})+'</div><p class="brand">Son Paket</p><p>Hesabın hazırlanıyor…</p></div>';b.hidden=false;
 }
 
+/* ---------- bildirimler ---------- */
+const VAPID_PUBLIC='BJnBqs52ajaLN04u4vjEh5vrewk7tpV5l3lgI15mp57almeerO9dMTtBTwFCOnaKr9rsKBQV5orGJiuHJuIPSKw';
+const NOTIF_OPTS=[['sabah','Sabah planı','Ciğerim uyandıktan biraz sonra bugünkü limitini söyler.'],['aksam','Akşam özeti','Yatmadan önce günün özeti ve unutulan kayıt hatırlatması.'],['basari','Sigarasız başarılar','Bıraktıktan sonra "12 saat", "2 gün" gibi sağlık kazanımları.'],['dayi','Nuri Dayı\'nın lafları','Uygulamaya uğramazsan ya da günün yarısında hakkını bitirirsen küfürlü laf atar.']];
+let PU={state:'?',busy:false,msg:'',savedFor:''};
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
+function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function b64uBytes(s){const p='='.repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));const o=new Uint8Array(b.length);for(let i=0;i<b.length;i++)o[i]=b.charCodeAt(i);return o;}
+async function subIdOf(endpoint){
+  try{const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(endpoint));return 's'+Array.from(new Uint8Array(h).slice(0,8)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+  catch(e){let h=2166136261;for(let i=0;i<endpoint.length;i++){h^=endpoint.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return 's'+h.toString(16);}
+}
+function tzName(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Istanbul';}catch(e){return 'Europe/Istanbul';}}
+function deviceLabel(){const u=navigator.userAgent;return /iphone/i.test(u)?'iPhone':/ipad/i.test(u)?'iPad':/android/i.test(u)?'Android':/windows/i.test(u)?'Windows':/mac/i.test(u)?'Mac':'Tarayıcı';}
+async function currentSub(){
+  if(!pushSupported())return null;
+  try{const reg=await navigator.serviceWorker.getRegistration();return reg?await reg.pushManager.getSubscription():null;}catch(e){return null;}
+}
+async function refreshPush(){
+  if(isIOS()&&!isStandalone())PU.state='ios-install';
+  else if(!pushSupported())PU.state='none';
+  else if(Notification.permission==='denied')PU.state='denied';
+  else PU.state=(await currentSub())?'on':'off';
+  renderNotif();
+  if(PU.state==='on')ensurePushSaved();
+}
+/* Bu cihazın aboneliği hesaba kayıtlı mı? Değilse (yeni hesap, yenilenen abonelik) kaydet. */
+async function ensurePushSaved(force){
+  if(!acc||!FB||!fbUser)return;
+  const s=await currentSub();if(!s)return;
+  const id=await subIdOf(s.endpoint),mark=acc.uid+'|'+id+'|'+todayKey();
+  if(!force&&(PU.savedFor===mark||lsGet('sonpaket.pushKayit')===mark))return;
+  const j=s.toJSON();
+  try{
+    await withTimeout(FB.savePush(acc.uid,id,{endpoint:j.endpoint,keys:{p256dh:j.keys.p256dh,auth:j.keys.auth},tz:tzName(),at:Date.now(),cihaz:deviceLabel()}),20000);
+    PU.savedFor=mark;lsSet('sonpaket.pushKayit',mark);
+  }catch(e){}
+}
+async function enablePush(){
+  if(PU.busy||!acc)return;
+  PU.busy=true;PU.msg='';renderNotif();
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){PU.msg=perm==='denied'?'İzin verilmedi. Telefonun ayarlarından bu uygulamanın bildirimlerine izin verebilirsin.':'İzin penceresi kapatıldı. Tekrar dene.';return;}
+    const reg=await navigator.serviceWorker.ready;
+    let s=await reg.pushManager.getSubscription();
+    if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64uBytes(VAPID_PUBLIC)});
+    await needFB();PU.savedFor='';lsDel('sonpaket.pushKayit');
+    await ensurePushSaved(true);
+    if(!PU.savedFor)throw authErr('unavailable');
+    toast('Bildirimler açıldı. İlk mesaj birkaç dakika içinde gelir.');
+  }catch(e){PU.msg='Bildirimler açılamadı. İnternetini kontrol edip tekrar dene.'+(e&&(e.code||e.name)?' ('+(e.code||e.name)+')':'');}
+  finally{PU.busy=false;await refreshPush();}
+}
+async function disablePush(silent){
+  const s=await currentSub();
+  if(s){
+    const id=await subIdOf(s.endpoint);
+    if(FB&&acc&&fbUser){try{await withTimeout(FB.dropPush(acc.uid,id),10000);}catch(e){}}
+    try{await s.unsubscribe();}catch(e){}
+  }
+  PU.savedFor='';lsDel('sonpaket.pushKayit');
+  if(!silent)toast('Bu cihazda bildirimler kapandı');
+  await refreshPush();
+}
+function renderNotif(){
+  const el=$('#notif-body');if(!el||!acc)return;
+  const st=PU.state,b=S().bildirim;let h='';
+  if(st==='ios-install')h='<p class="small muted">iPhone\'da bildirim almak için önce uygulamayı ana ekrana ekle (Safari > Paylaş > Ana Ekrana Ekle). Sonra ana ekrandaki simgeden açıp buraya dön.</p>';
+  else if(st==='none')h='<p class="small muted">Bu tarayıcı bildirimleri desteklemiyor. Telefonda Chrome ya da ana ekrana eklenmiş uygulamayı dene.</p>';
+  else if(st==='denied')h='<p class="small muted">Bildirim izni kapalı. Telefonun ayarlarından bu uygulamanın bildirimlerine izin verip sayfayı yenile.</p>';
+  else if(st==='on')h='<p class="small muted">Bu cihazda bildirimler açık. Hangilerinin geleceğini aşağıdan seçebilirsin.</p><button class="btn btn-line" data-act="notif-off">Bu cihazda kapat</button>';
+  else if(st==='off')h='<p class="small muted">Sabah planını, akşam özetini ve sigarasız başarılarını Ciğerim gönderir. Nuri Dayı da arada laf atar.</p><button class="btn btn-primary" data-act="notif-on"'+(PU.busy?' disabled':'')+'>'+ICON.bell+(PU.busy?'Açılıyor…':'Bildirimleri aç')+'</button>';
+  if(PU.msg)h+='<p class="err">'+esc(PU.msg)+'</p>';
+  if(st==='on')h+=NOTIF_OPTS.map(([k,t,d])=>'<div class="toggle"><span class="tl"><b>'+t+'</b><span>'+d+'</span></span><input type="checkbox" class="switch" id="set-n-'+k+'" data-notif="'+k+'"'+(b[k]?' checked':'')+' aria-label="'+esc(t)+'"></div>').join('')
+    +'<p class="small muted">Saatler, Ayarlar\'daki uyanma ve yatma saatine göre belirlenir. Bildirimler birkaç dakika gecikebilir.</p>';
+  el.innerHTML=h;
+}
+/* Uygulamaya girildiğini kaydet; Nuri Dayı uzun süre girmeyenleri böyle anlar. */
+let lastPing=0;
+function pingActive(){
+  if(!acc||!FB||!fbUser||document.hidden)return;
+  const now=Date.now();if(now-lastPing<20*60000)return;lastPing=now;
+  FB.ping(acc.uid).catch(()=>{lastPing=0;});
+}
+
 /* ---------- olaylar ---------- */
 function markSet(){if(state)state.setAt=Date.now();}
 document.addEventListener('click',e=>{
@@ -3307,6 +3408,8 @@ document.addEventListener('click',e=>{
     case 'aved-open':openAved('edit');break;
     case 'me-wave':{const el=$('#me-avatar .ch-you');if(el){el.classList.remove('idle');el.classList.add('wave');setTimeout(()=>{el.classList.remove('wave');el.classList.add('idle');},1600);}break;}
     case 'privacy':privacySheet();break;
+    case 'notif-on':enablePush();break;
+    case 'notif-off':disablePush(false);break;
     case 'pw-open':$('#pw-box').hidden=false;$('#pw-old').focus();break;
     case 'pw-cancel':$('#pw-box').hidden=true;$('#pw-err').hidden=true;break;
     case 'pw-save':{
@@ -3325,7 +3428,7 @@ document.addEventListener('click',e=>{
       const p=$('#del-pass').value,er=$('#del-err');
       if(!p){er.textContent='Onaylamak için şifreni yaz.';er.hidden=false;break;}
       b.disabled=true;b.textContent='Siliniyor…';AU.busy=true;
-      deleteMyAccount(p).then(()=>{AU.busy=false;closeOverlays();lsDel(LS_SESSION);useAccount(null);fbUser=null;openAuth('kayit');toast('Hesabın ve kayıtların silindi');},
+      deleteMyAccount(p).then(()=>{AU.busy=false;currentSub().then(s=>s&&s.unsubscribe()).catch(()=>{});closeOverlays();lsDel(LS_SESSION);useAccount(null);fbUser=null;openAuth('kayit');toast('Hesabın ve kayıtların silindi');},
         err=>{AU.busy=false;const c=err&&err.code;er.textContent=BADPASS.includes(c)?'Şifre yanlış.':authMsg(c);er.hidden=false;b.disabled=false;b.textContent='Hesabı sil';});
       break;}
   }
@@ -3345,6 +3448,7 @@ document.addEventListener('change',e=>{
   if(el.dataset&&el.dataset.task!==undefined){const d=dayMut(todayKey());const t=el.dataset.task;
     if(el.checked){if(!d.tasks.includes(t))d.tasks.push(t);}else d.tasks=d.tasks.filter(x=>x!==t);
     const all=$$('#t-tasks input').every(x=>x.checked);commit();if(el.checked&&all){toast('Bugünün görevleri tamam!');setTimeout(cheerBuddy,80);}return;}
+  if(el.dataset&&el.dataset.notif){S().bildirim[el.dataset.notif]=el.checked;markSet();commit();return;}
   const s=S();
   switch(el.id){
     case 'set-start':if(/^\d{4}-\d{2}-\d{2}$/.test(el.value))s.start=el.value;break;
@@ -3373,6 +3477,7 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden){if(acc){saveStore();if(acc.dirty)syncNow();}return;}
   if(acc&&current!=='sos'&&$('#story').hidden)render();
   if(acc&&(acc.dirty||Date.now()-syncAt>20000))syncNow();
+  pingActive();
 });
 window.addEventListener('pagehide',()=>{if(acc){touch();saveStore();}});
 window.addEventListener('online',()=>{
@@ -3407,9 +3512,9 @@ async function startFirebase(){
     fbUser=user;
     if(AU.busy)return;
     if(user){
-      if(acc&&acc.uid===user.uid){syncNow();return;}
+      if(acc&&acc.uid===user.uid){syncNow();pingActive();return;}
       if(acc){closeOverlays();useAccount(null);}
-      try{AU.busy=true;const a=await attachUser(user,null);AU.busy=false;loginAs(a);syncNow();}
+      try{AU.busy=true;const a=await attachUser(user,null);AU.busy=false;loginAs(a);syncNow();pingActive();}
       catch(e){AU.busy=false;openAuth('giris',authMsg(e&&e.code));}
     }else{
       if(acc)sessionLost();

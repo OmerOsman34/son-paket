@@ -41,10 +41,14 @@ async function load(){
       return F.runTransaction(db,async tx=>{
         const s=await tx.get(ref(uid));
         const out=fn(s.exists()?s.data():null);
-        if(out)tx.set(ref(uid),out);
+        if(out)tx.set(ref(uid),out,{merge:true});
         return out;
       });
-    }
+    },
+    /* bildirim aboneliği ve "uygulamaya en son ne zaman girdi" bilgisi */
+    async savePush(uid,id,sub){await F.setDoc(ref(uid),{push:{subs:{[id]:sub}}},{merge:true});},
+    async dropPush(uid,id){await F.updateDoc(ref(uid),'push.subs.'+id,F.deleteField());},
+    async ping(uid){await F.setDoc(ref(uid),{aktif:Date.now()},{merge:true});}
   };
 }
 load().then(api=>{window.__fbRes(api);},err=>{console.warn('Firebase yüklenemedi',err);window.__fbRes(null);});
