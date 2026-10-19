@@ -292,7 +292,11 @@ export async function run(env = process.env, now = new Date(), log = console.log
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  // GitHub Actions'ta özet satırı "notice" olarak görünür; böylece çalışma kaydına girmeden sonuç okunur.
+  const GH = process.env.GITHUB_ACTIONS === 'true';
+  const note = (lvl, msg) => console.log(GH ? `::${lvl} title=Bildirimler::${msg}` : msg);
   if (!process.env.FIREBASE_SERVICE_ACCOUNT || !process.env.VAPID_PRIVATE_KEY) {
-    console.log('Gizli anahtarlar (FIREBASE_SERVICE_ACCOUNT, VAPID_PRIVATE_KEY) henüz eklenmemiş; bildirim gönderilmedi.');
-  } else run().catch(e => { console.error(e.message); process.exit(1); });
+    note('warning', 'Gizli anahtarlar (FIREBASE_SERVICE_ACCOUNT, VAPID_PRIVATE_KEY) henüz eklenmemiş; bildirim gönderilmedi.');
+  } else run(process.env, new Date(), m => note(/hata|yazılamadı|Gönderilemedi/i.test(m) && !/hata: 0$/.test(m) ? 'warning' : 'notice', m))
+    .catch(e => { note('error', e.message); process.exit(1); });
 }
